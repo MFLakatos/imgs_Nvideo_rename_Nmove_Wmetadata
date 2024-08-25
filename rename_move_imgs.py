@@ -12,6 +12,8 @@ from dotenv import load_dotenv
 
 # Load environment variables from a .env file
 load_dotenv('environmentVar.env')
+
+# Replace with your OpenCage API key: https://opencagedata.com/
 # Retrieve the API key from an environment variable
 OPENCAGE_API_KEY = os.getenv('OPENCAGE_API_KEY')
 
@@ -49,8 +51,6 @@ FFPROBE_PATH = r'C:\Users\matias\ffmpeg-2024-07-07-git-0619138639-full_build\bin
 # Update the environment PATH
 os.environ["PATH"] += os.pathsep + os.path.dirname(FFMPEG_PATH)
 
-# Replace with your OpenCage API key: https://opencagedata.com/
-OPENCAGE_API_KEY = 'c71cd83a1fff4bf29da27ea72fa94192'
 
 # Function to get metadata using ffmpeg
 def get_metadata_ffmpeg(path):
@@ -86,24 +86,10 @@ def get_file_times(path):
         print(f"Error retrieving file times: {str(e)}")
         return None, None
 
-# Function to extract creation time from HEIC file
-def get_creation_time_heic(file_path):
-    try:
-        image = Image.open(file_path)
-        exif_data = image.info.get('exif', None)
-        if exif_data:
-            # Extract the creation time from EXIF metadata
-            exif = pillow_heif.get_exif(file_path)
-            creation_time = exif.get('DateTimeOriginal', 'N/A')
-            return creation_time
-    except Exception as e:
-        print(f"Error retrieving HEIC creation time: {str(e)}")
-    return 'N/A'
-
 # Function to parse time in different formats
 def parse_time(time_str):
     try:
-        return time.strptime(time_str, "%Y:%m:%d %H:%M:%S")
+        return time.strptime(time_str, "%Y-%m-%dT%H:%M:%S.%fZ")
     except ValueError:
         return time.strptime(time_str, "%a %b %d %H:%M:%S %Y")
 
@@ -127,30 +113,21 @@ def rename_and_copy_media(source_folder, destination_folder):
         else:
             continue
 
-        metadata = get_metadata_ffmpeg(file_path) if media_type == 'videos' else None
+        metadata = get_metadata_ffmpeg(file_path)
 
-        creation_time_ffmpeg = metadata['format']['tags'].get('creation_time', 'N/A') if metadata else 'N/A'
-        location_ffmpeg = metadata['format']['tags'].get('location', 'N/A') if metadata else 'N/A'
+        # print(metadata)
+        creation_time_ffmpeg = metadata['format']['tags'].get('creation_time', 'N/A')
+        location_ffmpeg = metadata['format']['tags'].get('location', 'N/A')
+        # print('creation_time_ffmpeg: ', creation_time_ffmpeg)
+        if creation_time_ffmpeg == 'N/A':
+            creation_time, modification_time = get_file_times(file_path)
+            if creation_time and modification_time:
 
-        if filename.lower().endswith('.heic'):
-            creation_time_heic = get_creation_time_heic(file_path)
-            if creation_time_heic == 'N/A':
-                creation_time, modification_time = get_file_times(file_path)
-                if creation_time and modification_time:
-                    older_time = min(creation_time, modification_time)
-                else:
-                    older_time = None
+                older_time = min(creation_time, modification_time)
             else:
-                older_time = time.mktime(parse_time(creation_time_heic))
+                older_time = None
         else:
-            if creation_time_ffmpeg == 'N/A':
-                creation_time, modification_time = get_file_times(file_path)
-                if creation_time and modification_time:
-                    older_time = min(creation_time, modification_time)
-                else:
-                    older_time = None
-            else:
-                older_time = time.mktime(parse_time(creation_time_ffmpeg))
+            older_time = time.mktime(parse_time(creation_time_ffmpeg))
 
         if older_time:
             older_datetime = datetime.fromtimestamp(older_time)
