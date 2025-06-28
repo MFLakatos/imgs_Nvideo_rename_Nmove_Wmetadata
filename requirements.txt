@@ -1,0 +1,10 @@
+ffmpeg-python
+Pillow
+pillow-heif
+python-dotenv
+requests
+rich
+tinytag
+tqdm
+PyYAML
+hashlib
