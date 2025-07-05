@@ -1,12 +1,11 @@
 import logging
 from datetime import datetime, timedelta
 
-#TODO: adaptar a nueva estructura de carpetas
-LOG_FILE_PATH = 'processed_files.txt'
+LOG_FILE_PATH = 'logs/processed_files.txt'
 MAX_USES_PER_24H = 2500
 
-# Configurar logging
 logger = logging.getLogger(__name__)
+# Si querés habilitar logging a archivo y consola, descomentá el bloque de abajo
 # logging.basicConfig(
 #     level=logging.INFO,
 #     format='[%(asctime)s] [%(levelname)s] %(message)s',
@@ -22,14 +21,15 @@ def count_recent_geolocated_uses(log_file: str) -> int:
     count = 0
 
     try:
-        with open(log_file, 'r') as f:
+        with open(log_file, 'r', encoding='utf-8') as f:
             for line in f:
                 parts = line.strip().split('|')
-                if len(parts) != 3:
+                if len(parts) != 5:
                     logging.debug(f"Línea malformada ignorada: {line.strip()}")
                     continue
 
-                _, geo_used, timestamp_str = parts
+                geo_used = parts[3]
+                timestamp_str = parts[4]
 
                 try:
                     timestamp = datetime.fromisoformat(timestamp_str)
@@ -37,7 +37,7 @@ def count_recent_geolocated_uses(log_file: str) -> int:
                     logging.warning(f"Formato de fecha inválido: {timestamp_str}")
                     continue
 
-                if geo_used == 'yes' and timestamp >= twenty_four_hours_ago:
+                if geo_used.lower() == 'yes' and timestamp >= twenty_four_hours_ago:
                     count += 1
 
     except FileNotFoundError:
@@ -47,6 +47,7 @@ def count_recent_geolocated_uses(log_file: str) -> int:
     return count
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
     logging.info("Iniciando chequeo de uso de geolocalización en las últimas 24 horas...")
     count = count_recent_geolocated_uses(LOG_FILE_PATH)
     logging.info(f"Cantidad de usos con geolocalización en las últimas 24 horas: {count} / {MAX_USES_PER_24H}")

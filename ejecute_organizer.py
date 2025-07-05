@@ -1,10 +1,11 @@
-
 import os
 import sys
 import yaml
 import pprint
 import logging
-from src.media_organizer import MediaOrganizer
+from src.media_organizer import MediaOrganizer, DirectoryComparator
+from src.check_geolocation_usage import count_recent_geolocated_uses, MAX_USES_PER_24H
+
 
 # TODO: Cambiar el path para que funcione desde el yaml
 logging.basicConfig(
@@ -33,6 +34,24 @@ def main():
     if config.get('inspect_some_files', False):
         n = config.get('number_of_files_to_inspect', 3)
         organizer.inspect_metadata(n)
+
+    if config.get("comparar_directorios", False):
+        comparator = DirectoryComparator(
+            config["input_dir"],
+            config["output_dir"]
+        )
+        comparator.compare()
+    # Chequeo final de geolocalización
+    log_file_path = config.get('log_file', 'logs/processed_files.txt')
+    logging.info("📍 Verificando uso de geolocalización en las últimas 24 horas...")
+    count = count_recent_geolocated_uses(log_file_path)
+    logging.info(f"📊 Usos recientes con geolocalización: {count} / {MAX_USES_PER_24H}")
+
+    if count >= MAX_USES_PER_24H:
+        logging.warning("⚠️  Se alcanzó o superó el límite diario de geolocalización. Se recomienda pausar el procesamiento.")
+    else:
+        logging.info("✅  Aún puedes continuar procesando archivos con geolocalización.")
+
 
     
 

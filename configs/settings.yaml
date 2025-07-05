@@ -1,41 +1,17 @@
-# Ruta a la carpeta de entrada (origen de fotos y videos)
-input_dir: "c:/Users/matias/Desktop/iCloudMFernandezLakatos/prueba_in" #"C:/Users/matias/Pictures/iCloud Photos/Photos"
-
-# Ruta a la carpeta de salida (donde se organizarán las copias renombradas)
-output_dir: "c:/Users/matias/Desktop/iCloudMFernandezLakatos/prueba_out" # "D:/Respaldo_media/iPhone14v2"
-
-# Ruta al ejecutable de FFmpeg (necesario para procesar videos)
+input_dir: "D:/Respaldo_media/copy_paste_all_iphone/202103__" #"C:/Users/matias/Pictures/iCloud Photos/Photos" #"c:/Users/matias/Desktop/iCloudMFernandezLakatos/prueba_in" #
+output_dir: "D:/Respaldo_media/iPhone14v2" #"c:/Users/matias/Desktop/iCloudMFernandezLakatos/prueba_out" # 
+# output_dir: "Apple iPhone/Internal Storage/202506_d"
 ffmpeg_path: "C:/Users/matias/ffmpeg/bin/ffmpeg.exe"
-
-# Ruta al ejecutable de FFprobe (para extraer metadatos de los videos)
 ffprobe_path: "C:/Users/matias/ffmpeg/bin/ffprobe.exe"
-
-# Archivo .env que contiene claves como OPENCAGE_API_KEY y my_email
 env_file: "environmentVar.env"
-
-# Archivo de registro donde se guarda qué archivos ya fueron procesados
 log_file: "logs/processed_files.txt"
-
-# Si es True, se omite copiar archivos ya procesados (según el log de procesados)
 skip_already_processed: true
-
-# Máximo de archivos que se procesarán por sesión
 max_files_per_session: 2499
-
-# Si es true, eliminará los archivos procesados de la carpeta de entrada
 delete_after_processing: false
-
-# Al final inspecciona algunos archivos para verificar que se procesaron correctamente y el tipo de información que se extrajo
 inspect_some_files: false
 number_of_files_to_inspect: 3
-
-# Configuración del sistema de logging
 logging:
-  # Habilita o deshabilita el logging
   enabled: true
-
-  # Archivo donde se guardarán los logs
   log_file: logs/media_organizer.log
-
-  # Nivel de detalle del log (DEBUG, INFO, WARNING, ERROR, CRITICAL)
   log_level: INFO
+comparar_directorios: true

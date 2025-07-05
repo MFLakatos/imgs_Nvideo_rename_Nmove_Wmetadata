@@ -7,6 +7,7 @@ import subprocess
 from typing import Optional, Tuple, Dict, Any
 from time import sleep
 import hashlib
+from collections import Counter
 
 import requests
 from PIL import Image
@@ -78,20 +79,6 @@ class MediaOrganizer:
             with open(self.processed_log_path, 'w', encoding='utf-8') as f:
                 pass
 
-    # def _load_processed_files(self) -> Dict[str, Dict[str, str]]:
-    #     """
-    #     Carga un diccionario con información de archivos procesados:
-    #     filename -> {'geo': 'yes'/'no', 'timestamp': 'ISO format'}
-    #     """
-    #     processed = {}
-    #     with open(self.processed_log_path, 'r') as f:
-    #         for line in f:
-    #             try:
-    #                 name, geo, timestamp = line.strip().split('|')
-    #                 processed[name] = {'geo': geo, 'timestamp': timestamp}
-    #             except ValueError:
-    #                 continue
-    #     return processed
     def _load_processed_files(self) -> Dict[str, Dict[str, str]]:
         processed = {}
         if not os.path.exists(self.processed_log_path):
@@ -111,13 +98,6 @@ class MediaOrganizer:
                     continue
         return processed
 
-    # def _mark_as_processed(self, filename: str, used_geolocation: bool) -> None:
-    #     """Agrega un archivo al registro de procesados."""
-    #     geo_status = 'yes' if used_geolocation else 'no'
-    #     timestamp = datetime.now().isoformat()
-    #     with open(self.processed_log_path, 'a') as f:
-    #         f.write(f"{filename}|{geo_status}|{timestamp}\n")
-    #     self.processed_files[filename] = {'geo': geo_status, 'timestamp': timestamp}
     def _mark_as_processed(self, original_filename: str, final_filename: str, used_geolocation: bool, file_hash: str) -> None:
         geo_status = 'yes' if used_geolocation else 'no'
         timestamp = datetime.now().isoformat()
@@ -133,7 +113,8 @@ class MediaOrganizer:
 
     def _count_geolocations_last_24h(self) -> int:
         """
-        Cuenta cuántos archivos fueron geolocalizados ('yes') en las últimas 24 horas.
+        Cuenta cuántos archivos fueron geolocalizados ('yes') en las últimas 24 horas,
+        basado en el archivo de log con estructura de 5 campos separados por '|'.
         """
         now = datetime.now()
         limit_time = now - timedelta(hours=24)
@@ -143,49 +124,25 @@ class MediaOrganizer:
             with open(self.processed_log_path, 'r', encoding='utf-8') as f:
                 for line in f:
                     parts = line.strip().split('|')
-                    if len(parts) != 3:
+                    if len(parts) != 5:
+                        logging.debug(f"Línea malformada ignorada: {line.strip()}")
                         continue
-                    _, geo_status, timestamp_str = parts
+
+                    geo_status = parts[3]
+                    timestamp_str = parts[4]
+
                     try:
                         timestamp = datetime.fromisoformat(timestamp_str)
-                        if geo_status == 'yes' and timestamp >= limit_time:
+                        if geo_status.lower() == 'yes' and timestamp >= limit_time:
                             count += 1
                     except ValueError:
+                        logging.warning(f"Formato de fecha inválido: {timestamp_str}")
                         continue
         except FileNotFoundError:
             logging.warning(f"No se encontró el archivo de log: {self.processed_log_path}")
+
         return count
 
-    # def check_already_processed_in_input(self):
-    #     # Listar archivos en input_dir con extensiones soportadas
-    #     all_files = [f for f in os.listdir(self.input_dir)
-    #                 if os.path.splitext(f.lower())[1] in self.supported_image_exts.union(self.supported_video_exts)]
-
-    #     if not all_files:
-    #         logging.error(f"No hay archivos en el directorio de origen {self.input_dir}.")
-    #         return
-
-
-    #     logging.debug(f"🧾 Archivos registrados como procesados en el log: {list(self.processed_files.keys())}")
-    #     logging.debug(f"📁 Archivos presentes en el input: {all_files}")
-
-    #     # Filtrar los que ya están procesados (según self.processed_files)
-    #     processed_in_input = [f for f in all_files if f in self.processed_files]
-    #     not_processed_in_input = [f for f in all_files if f not in self.processed_files]
-
-    #     logging.info(f"\n🗂️  Análisis del directorio de entrada: {self.input_dir}")
-    #     logging.info(f"📄 Total de archivos multimedia encontrados: {len(all_files)}")
-    #     logging.info(f"✅ Archivos ya registrados como procesados (según nombre): {len(processed_in_input)}")
-    #     logging.info(f"🆕 Archivos nuevos (no encontrados en el log): {len(not_processed_in_input)}")
-
-    #     if processed_in_input:
-    #         logging.debug("📝 Lista de archivos ya procesados:")
-    #         for f in processed_in_input:
-    #             logging.debug(f"  - {f}")
-    #     if not_processed_in_input:
-    #         logging.debug("📥 Lista de archivos nuevos (a procesar):")
-    #         for f in not_processed_in_input:
-    #             logging.debug(f"  - {f}")
     def check_already_processed_in_input(self):
         all_files = [
             f for f in os.listdir(self.input_dir)
@@ -243,19 +200,6 @@ class MediaOrganizer:
             [self.ffprobe_path, '-v', 'error', '-show_format', '-show_streams', '-print_format', 'json', path],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         return json.loads(result.stdout)
-
-    # def reverse_geocode_opencage(self, lat: float, lon: float) -> Tuple[str, str]:
-    #     """
-    #     Obtiene ubicación (departamento y país) a partir de coordenadas usando OpenCage API.
-    #     """
-    #     url = f'https://api.opencagedata.com/geocode/v1/json?q={lat}+{lon}&key={self.opencage_key}'
-    #     response = requests.get(url)
-    #     if response.status_code == 200:
-    #         results = response.json().get('results')
-    #         if results:
-    #             components = results[0].get('components', {})
-    #             return components.get('state', 'UnknownState'), components.get('country', 'UnknownCountry')
-    #     return 'UnknownState', 'UnknownCountry'
 
     def reverse_geocode_opencage(self, lat: float, lon: float) -> Dict[str, str]:
         """
@@ -357,7 +301,7 @@ class MediaOrganizer:
         os.makedirs(os.path.join(no_metadata_path, 'images'), exist_ok=True)
 
         processed_count = 0
-
+        
         for filename in os.listdir(self.input_dir):
             if self.skip_already_processed and filename in self.processed_files:
                 continue  # omitimos archivos ya procesados según el log
@@ -408,7 +352,7 @@ class MediaOrganizer:
                     else:
                         dst_path = os.path.join(no_metadata_path, media_type, filename)
                     if os.path.exists(dst_path):
-                        logging.info(f"Ya existe en destino, no se copia: {dst_path}")
+                        logging.debug(f"Ya existe en destino, no se copia: {dst_path}")
                     else:
                         shutil.copy2(src_path, dst_path)
                         logging.info(f"Copied: {src_path} → {dst_path}")
@@ -505,6 +449,71 @@ class MediaOrganizer:
             else:
                 logging.info("Tipo de archivo no soportado para inspección.")
             count += 1
+
+class DirectoryComparator:
+    def __init__(self, dir1: str, dir2: str) -> None:
+        self.dir1 = dir1
+        self.dir2 = dir2
+
+    def compute_file_hash(self, path: str, block_size: int = 65536) -> str:
+        hasher = hashlib.sha256()
+        with open(path, 'rb') as f:
+            for chunk in iter(lambda: f.read(block_size), b''):
+                hasher.update(chunk)
+        return hasher.hexdigest()
+
+    def scan_directory(self, directory: str) -> Dict[str, str]:
+        logging.info(f"\n📁 Analizando: {directory}")
+
+        if not os.path.isdir(directory):
+            logging.error(f"No se encontró el directorio: {directory}")
+            return {}
+
+        files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
+        ext_counter = Counter(os.path.splitext(f.lower())[1] for f in files)
+
+        logging.info(f"📄 Total de archivos: {len(files)}")
+        logging.info(f"📂 Tipos de archivo encontrados:")
+        for ext, count in ext_counter.items():
+            logging.info(f"  - {ext or '[sin extensión]'}: {count}")
+
+        hash_dict = {}
+        for f in files:
+            path = os.path.join(directory, f)
+            try:
+                file_hash = self.compute_file_hash(path)
+                hash_dict[file_hash] = f
+            except Exception as e:
+                logging.warning(f"No se pudo calcular el hash de {f}: {e}")
+
+        return hash_dict
+
+    def compare(self):
+        hash_map_1 = self.scan_directory(self.dir1)
+        hash_map_2 = self.scan_directory(self.dir2)
+
+        hashes_1 = set(hash_map_1.keys())
+        hashes_2 = set(hash_map_2.keys())
+
+        solo_en_1 = hashes_1 - hashes_2
+        solo_en_2 = hashes_2 - hashes_1
+
+        print("\n🔍 Comparación entre directorios")
+        if solo_en_1:
+            logging.info(f"🟥 Archivos en '{self.dir1}' pero no en '{self.dir2}': {len(solo_en_1)}")
+            for h in solo_en_1:
+                logging.info(f"  - {hash_map_1[h]}")
+        else:
+            logging.info(f"✅ Todos los archivos de '{self.dir1}' están en '{self.dir2}'.")
+
+        if solo_en_2:
+            logging.info(f"🟦 Archivos en '{self.dir2}' pero no en '{self.dir1}': {len(solo_en_2)}")
+            for h in solo_en_2:
+                logging.info(f"  - {hash_map_2[h]}")
+        else:
+            logging.info(f"✅ Todos los archivos de '{self.dir2}' están en '{self.dir1}'.")
+
+
 
 if __name__ == "__main__":
     logging.warning("Este archivo NO debería ejecutarse directamente.")
